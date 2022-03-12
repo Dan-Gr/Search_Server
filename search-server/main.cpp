@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <numeric>
 
 using namespace std;
 
@@ -86,7 +87,9 @@ public:
 
         sort(matched_documents.begin(), matched_documents.end(),
              [](const Document& lhs, const Document& rhs) {
-                 if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                 // внес правки
+                 int vsp = abs(lhs.relevance - rhs.relevance);
+                 if (vsp < 1e-6) {
                      return lhs.rating > rhs.rating;
                  } else {
                      return lhs.relevance > rhs.relevance;
@@ -97,12 +100,13 @@ public:
         }
         return matched_documents;
     }
-
+    /*
     vector<Document> FindTopDocuments(const string& raw_query) const {            
         return FindTopDocuments(raw_query, [](int id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
     }
-
-    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status_search) const {
+    */
+    // внес правки:
+    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status_search = DocumentStatus::ACTUAL) const {
             auto check = [status_search](int document_id, DocumentStatus status, int rating) { return status == status_search; };
         return FindTopDocuments(raw_query, check);
     }
@@ -162,10 +166,8 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
+        // внес правки
+        int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
         return rating_sum / static_cast<int>(ratings.size());
     }
     
@@ -179,7 +181,9 @@ private:
         bool is_minus = false;
         if (text[0] == '-') {
             is_minus = true;
-            text = text.substr(1);
+            // внес правки
+            // text = text.substr(1);
+            text.erase(0, 1);
         }
         return {
             text,
@@ -215,13 +219,15 @@ private:
     template <typename Check>
     vector<Document> FindAllDocuments(const Query& query, Check check) const {
         map<int, double> document_to_relevance;
-        for (const string& word : query.plus_words) {
+        for (const string word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
             const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
-            for (const auto [document_id, term_freq] : word_to_document_freqs_.at(word)) {
-                if (check(document_id, documents_.at(document_id).status, documents_.at(document_id).rating) != 0) {
+            for (const auto& [document_id, term_freq] : word_to_document_freqs_.at(word)) {
+                // внес правки
+                const int vsp = check(document_id, documents_.at(document_id).status, documents_.at(document_id).rating);
+                if (vsp != 0) {
                     document_to_relevance[document_id] += term_freq * inverse_document_freq;
                 }
             }
@@ -285,3 +291,15 @@ int main() {
     
     return 0;
 } 
+
+/*
+ответ:
+{ document_id = 1, relevance = 0.866434, rating = 5 }
+{ document_id = 0, relevance = 0.173287, rating = 2 }
+{ document_id = 2, relevance = 0.173287, rating = -1 }
+BANNED:
+{ document_id = 3, relevance = 0.231049, rating = 9 }
+Even ids:
+{ document_id = 0, relevance = 0.173287, rating = 2 }
+{ document_id = 2, relevance = 0.173287, rating = -1 }
+*/
