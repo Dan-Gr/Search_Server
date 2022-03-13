@@ -13,7 +13,7 @@
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
-
+const int MIN_RELEVANSE = 1e-6;
 string ReadLine() {
     string s;
     getline(cin, s);
@@ -88,8 +88,7 @@ public:
         sort(matched_documents.begin(), matched_documents.end(),
              [](const Document& lhs, const Document& rhs) {
                  // внес правки
-                 int vsp = abs(lhs.relevance - rhs.relevance);
-                 if (vsp < 1e-6) {
+                 if (abs(lhs.relevance - rhs.relevance) < MIN_RELEVANSE) {
                      return lhs.rating > rhs.rating;
                  } else {
                      return lhs.relevance > rhs.relevance;
@@ -100,12 +99,6 @@ public:
         }
         return matched_documents;
     }
-    /*
-    vector<Document> FindTopDocuments(const string& raw_query) const {            
-        return FindTopDocuments(raw_query, [](int id, DocumentStatus status, int rating) { return status == DocumentStatus::ACTUAL; });
-    }
-    */
-    // внес правки:
     vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status_search = DocumentStatus::ACTUAL) const {
             auto check = [status_search](int document_id, DocumentStatus status, int rating) { return status == status_search; };
         return FindTopDocuments(raw_query, check);
@@ -166,7 +159,6 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        // внес правки
         int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
         return rating_sum / static_cast<int>(ratings.size());
     }
@@ -181,8 +173,6 @@ private:
         bool is_minus = false;
         if (text[0] == '-') {
             is_minus = true;
-            // внес правки
-            // text = text.substr(1);
             text.erase(0, 1);
         }
         return {
@@ -226,8 +216,8 @@ private:
             const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
             for (const auto& [document_id, term_freq] : word_to_document_freqs_.at(word)) {
                 // внес правки
-                const int vsp = check(document_id, documents_.at(document_id).status, documents_.at(document_id).rating);
-                if (vsp != 0) {
+                const auto& vsp = documents_.at(document_id);
+                if (check(document_id, vsp.status, vsp.rating)) {
                     document_to_relevance[document_id] += term_freq * inverse_document_freq;
                 }
             }
