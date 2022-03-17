@@ -102,7 +102,7 @@ void TestMatchDocument() {
     // id задан верно
     // поисковый запрос содержит слова содержащиеся в тексте документа
     // минус слов нет
-    // документ документов дается несколько
+    // документов дается несколько
     {
     SearchServer server;
     server.AddDocument(id_one,      doc_one,        DocumentStatus::ACTUAL, rating_one);
