@@ -1,295 +1,163 @@
-// search_server_s1_t2_v2.cpp
+// -------- Начало модульных тестов поисковой системы ----------
 
-#include <algorithm>
-#include <cmath>
-#include <iostream>
-#include <map>
-#include <set>
-#include <string>
-#include <utility>
-#include <vector>
-#include <numeric>
+void TestExcludeStopWordsFromAddedDocumentContent() {
+    const int doc_id = 42;
+    const string content = "cat in the city"s;
+    const vector<int> ratings = {1, 2, 3};
+    {
+        SearchServer server;
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        const auto found_docs = server.FindTopDocuments("in"s);
+        ASSERT_EQUAL(found_docs.size(), 1u);
+        const Document& doc0 = found_docs[0];
+        ASSERT_EQUAL(doc0.id, doc_id);
+    }
 
-using namespace std;
-
-const int MAX_RESULT_DOCUMENT_COUNT = 5;
-const int MIN_RELEVANSE = 1e-6;
-string ReadLine() {
-    string s;
-    getline(cin, s);
-    return s;
+    {
+        SearchServer server;
+        server.SetStopWords("in the"s);
+        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        ASSERT_HINT(server.FindTopDocuments("in"s).empty(), "Stop words must be excluded from documents"s);
+    }
 }
 
-int ReadLineWithNumber() {
-    int result;
-    cin >> result;
-    ReadLine();
-    return result;
+void TestFind() {
+    int id_one = 1;
+    int id_two = 2;
+    int id_three = 3;
+    int id_four = 4;
+    string doc_one = "small cat in the small city"s;
+    string doc_two = "dog in the town"s;
+    string doc_three = "cat printer table in for car seven apple"s;
+    string doc_four = "test school never again song in with"s;
+    vector<int> rating_one = {-10, 0, 8};
+    vector<int> rating_two = {-10, -6, -1};
+    vector<int> rating_three = {1, 4, 12};
+    vector<int> rating_four = {0};
+    string search_query = "cat printer test"s;
+
+    {
+    SearchServer server;
+    server.AddDocument(id_one,      doc_one,        DocumentStatus::ACTUAL, rating_one);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments("small"s).size()), 1, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments("small"s)[0].id), 1, "FindTopDocuments: FAIL"s);
+    server.SetStopWords("small"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments("small"s).size()), 0, "FindTopDocuments: FAIL"s);
+    }
+    // последовательные id
+    // часть документов содержит поисковый запрос
+    // минус слов нет
+    // все документы имеют одинаковый статус
+    // стоп слова не заданы
+    {
+    SearchServer server;
+    server.AddDocument(id_one,      doc_one,        DocumentStatus::ACTUAL, rating_one);
+    server.AddDocument(id_two,      doc_two,        DocumentStatus::ACTUAL, rating_two);
+    server.AddDocument(id_three,    doc_three,      DocumentStatus::ACTUAL, rating_three);
+    server.AddDocument(id_four,     doc_four,       DocumentStatus::ACTUAL, rating_four);
+    // проверка верного присвоения id, rating
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[0].id), 3, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[0].rating), 5, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<bool>(server.FindTopDocuments(search_query)[0].relevance < 0.25994), true, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<bool>(server.FindTopDocuments(search_query)[0].relevance > 0.25992), true, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[1].id), 4, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[1].rating), 0, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[1].relevance < 0.198043), true, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[1].relevance > 0.198041), true, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[2].id), 1, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[2].rating), 0, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[2].relevance < 0.115526), true, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query)[2].relevance > 0.115524), true, "FindTopDocuments: FAIL"s);
+
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query, [](int document_id, DocumentStatus, int) \
+    { return document_id % 2 == 0; })[0].id), 4, "FindTopDocuments: FAIL"s);
+
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query, [](int document_id, DocumentStatus, int) \
+    { return document_id % 2 == 0; })[0].rating), 0, "FindTopDocuments: FAIL"s);
+
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query, [](int document_id, DocumentStatus, int) \
+    { return document_id % 2 == 0; })[0].relevance < 0.198043), true, "FindTopDocuments: FAIL"s);
+
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query, [](int document_id, DocumentStatus, int) \
+    { return document_id % 2 == 0; })[0].relevance > 0.198041), true, "FindTopDocuments: FAIL"s);
+    }
+
 }
 
-vector<string> SplitIntoWords(const string& text) {
-    vector<string> words;
-    string word;
-    for (const char c : text) {
-        if (c == ' ') {
-            if (!word.empty()) {
-                words.push_back(word);
-                word.clear();
-            }
-        } else {
-            word += c;
-        }
-    }
-    if (!word.empty()) {
-        words.push_back(word);
-    }
+void TestMatchDocument() {
+    int id_one = 1;
+    int id_two = 2;
+    int id_three = 3;
+    int id_four = 4;
+    string doc_one = "small cat in the small city"s;
+    string doc_two = "dog in the town"s;
+    string doc_three = "cat printer table in for car seven apple"s;
+    string doc_four = "test school never again song in with"s;
+    vector<int> rating_one = {-10, 0, 8};
+    vector<int> rating_two = {-10, -6, -1};
+    vector<int> rating_three = {1, 4, 12};
+    vector<int> rating_four = {0};
+    string search_query = "cat printer test"s;
+    // вводные: есть дублируемые в тексте документа слова
+    // id задан верно
+    // поисковый запрос содержит слова содержащиеся в тексте документа
+    // минус слов нет
+    // документ документов дается несколько
+    {
+    SearchServer server;
+    server.AddDocument(id_one,      doc_one,        DocumentStatus::ACTUAL, rating_one);
+    server.AddDocument(id_two,      doc_two,        DocumentStatus::BANNED, rating_two);
+    server.AddDocument(id_three,    doc_three,      DocumentStatus::IRRELEVANT, rating_one);
+    server.AddDocument(id_four,     doc_four,       DocumentStatus::REMOVED, rating_four);
 
-    return words;
-}
+    ASSERT_EQUAL_HINT(static_cast<string>(get<0>(server.MatchDocument(search_query, id_one))[0]), "cat", "MatchDocument: FAIL"s);
     
-struct Document {
-    int id;
-    double relevance;
-    int rating;
-};
+    ASSERT_EQUAL_HINT(static_cast<int>(get<0>(server.MatchDocument(search_query, id_one)).size()), 1, "MatchDocument: FAIL"s);
+    
+    ASSERT_EQUAL_HINT(static_cast<int>(get<0>(server.MatchDocument(search_query, id_two)).size()), 0, "MatchDocument: FAIL"s);
 
-enum class DocumentStatus {
-    ACTUAL,
-    IRRELEVANT,
-    BANNED,
-    REMOVED,
-};
+    ASSERT_EQUAL_HINT(static_cast<string>(get<0>(server.MatchDocument(search_query, id_three))[0]), "cat"s, "MatchDocument: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<string>(get<0>(server.MatchDocument(search_query, id_three))[1]), "printer"s, "MatchDocument: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(get<0>(server.MatchDocument(search_query, id_three)).size()), 2, "MatchDocument: FAIL"s);
 
-class SearchServer {
-public:
-    void SetStopWords(const string& text) {
-        for (const string& word : SplitIntoWords(text)) {
-            stop_words_.insert(word);
-        }
-    }    
-    
-    void AddDocument(int document_id, const string& document, DocumentStatus status, const vector<int>& ratings) {
-        const vector<string> words = SplitIntoWordsNoStop(document);
-        const double inv_word_count = 1.0 / words.size();
-        for (const string& word : words) {
-            word_to_document_freqs_[word][document_id] += inv_word_count;
-        }
-        documents_.emplace(document_id, 
-            DocumentData{
-                ComputeAverageRating(ratings), 
-                status
-            });
-    }
-    template <typename Check>
-    vector<Document> FindTopDocuments(const string& raw_query, Check check) const {
-        const Query query = ParseQuery(raw_query);
-        auto matched_documents = FindAllDocuments(query, check);
+    ASSERT_EQUAL_HINT(static_cast<string>(get<0>(server.MatchDocument(search_query, id_four))[0]), "test"s, "MatchDocument: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(get<0>(server.MatchDocument(search_query, id_four)).size()), 1, "MatchDocument: FAIL"s);
 
-        sort(matched_documents.begin(), matched_documents.end(),
-             [](const Document& lhs, const Document& rhs) {
-                 // внес правки
-                 if (abs(lhs.relevance - rhs.relevance) < MIN_RELEVANSE) {
-                     return lhs.rating > rhs.rating;
-                 } else {
-                     return lhs.relevance > rhs.relevance;
-                 }
-             });
-        if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
-            matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
-        }
-        return matched_documents;
-    }
-    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status_search = DocumentStatus::ACTUAL) const {
-            auto check = [status_search](int document_id, DocumentStatus status, int rating) { return status == status_search; };
-        return FindTopDocuments(raw_query, check);
-    }
+    // поисковый запрос не содержит слов содержащиеся в тексте документов
+    ASSERT_EQUAL_HINT(static_cast<int>(get<0>(server.MatchDocument("press"s, id_two)).size()), 0, "MatchDocument: FAIL"s);
 
-    int GetDocumentCount() const {
-        return documents_.size();
-    }
-    
-    tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
-        const Query query = ParseQuery(raw_query);
-        vector<string> matched_words;
-        for (const string& word : query.plus_words) {
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            if (word_to_document_freqs_.at(word).count(document_id)) {
-                matched_words.push_back(word);
-            }
-        }
-        for (const string& word : query.minus_words) {
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            if (word_to_document_freqs_.at(word).count(document_id)) {
-                matched_words.clear();
-                break;
-            }
-        }
-        return {matched_words, documents_.at(document_id).status};
-    }
-    
-private:
-    struct DocumentData {
-        int rating;
-        DocumentStatus status;
-    };
+    // минус слова есть
+    ASSERT_EQUAL_HINT(static_cast<int>(get<0>(server.MatchDocument("-cat printer test"s, id_two)).size()), 0, "MatchDocument: FAIL"s);
+    // минус слова в документах нет
+    ASSERT_EQUAL_HINT(static_cast<string>(get<0>(server.MatchDocument("cat printer test -pong"s, id_four))[0]), "test"s, "MatchDocument: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(get<0>(server.MatchDocument("cat printer test -pong"s, id_four)).size()), 1, "MatchDocument: FAIL"s);
+    // минус слова все
+    ASSERT_EQUAL_HINT(static_cast<int>(get<0>(server.MatchDocument("-cat -printer -test"s, id_one)).size()), 0, "MatchDocument: FAIL"s);
 
-    set<string> stop_words_;
-    map<string, map<int, double>> word_to_document_freqs_;
-    map<int, DocumentData> documents_;
-    
-    bool IsStopWord(const string& word) const {
-        return stop_words_.count(word) > 0;
-    }
-    
-    vector<string> SplitIntoWordsNoStop(const string& text) const {
-        vector<string> words;
-        for (const string& word : SplitIntoWords(text)) {
-            if (!IsStopWord(word)) {
-                words.push_back(word);
-            }
-        }
-        return words;
-    }
-    
-    static int ComputeAverageRating(const vector<int>& ratings) {
-        if (ratings.empty()) {
-            return 0;
-        }
-        int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
-        return rating_sum / static_cast<int>(ratings.size());
-    }
-    
-    struct QueryWord {
-        string data;
-        bool is_minus;
-        bool is_stop;
-    };
-    
-    QueryWord ParseQueryWord(string text) const {
-        bool is_minus = false;
-        if (text[0] == '-') {
-            is_minus = true;
-            text.erase(0, 1);
-        }
-        return {
-            text,
-            is_minus,
-            IsStopWord(text)
-        };
-    }
-    
-    struct Query {
-        set<string> plus_words;
-        set<string> minus_words;
-    };
-    
-    Query ParseQuery(const string& text) const {
-        Query query;
-        for (const string& word : SplitIntoWords(text)) {
-            const QueryWord query_word = ParseQueryWord(word);
-            if (!query_word.is_stop) {
-                if (query_word.is_minus) {
-                    query.minus_words.insert(query_word.data);
-                } else {
-                    query.plus_words.insert(query_word.data);
-                }
-            }
-        }
-        return query;
-    }
-    
-    double ComputeWordInverseDocumentFreq(const string& word) const {
-        return log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
-    }
+    // добавляем пустой документ
+    server.AddDocument(25,      {},        DocumentStatus::ACTUAL, {});
 
-    template <typename Check>
-    vector<Document> FindAllDocuments(const Query& query, Check check) const {
-        map<int, double> document_to_relevance;
-        for (const string word : query.plus_words) {
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
-            for (const auto& [document_id, term_freq] : word_to_document_freqs_.at(word)) {
-                // внес правки
-                const auto& vsp = documents_.at(document_id);
-                if (check(document_id, vsp.status, vsp.rating)) {
-                    document_to_relevance[document_id] += term_freq * inverse_document_freq;
-                }
-            }
-        }
-        
-        for (const string& word : query.minus_words) {
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            for (const auto [document_id, _] : word_to_document_freqs_.at(word)) {
-                document_to_relevance.erase(document_id);
-            }
-        }
+    ASSERT_EQUAL_HINT(static_cast<int>(get<0>(server.MatchDocument(search_query, 25)).size()), 0, "MatchDocument: FAIL"s);
+    // проверка присвоения статусов
+    ASSERT_EQUAL_HINT(static_cast<int>(get<1>(server.MatchDocument(search_query, id_one))), 0, "MatchDocument: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(get<1>(server.MatchDocument(search_query, id_two))), 2, "MatchDocument: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(get<1>(server.MatchDocument(search_query, id_three))), 1, "MatchDocument: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(get<1>(server.MatchDocument(search_query, id_four))), 3, "MatchDocument: FAIL"s);
 
-        vector<Document> matched_documents;
-        for (const auto [document_id, relevance] : document_to_relevance) {
-            matched_documents.push_back({
-                document_id,
-                relevance,
-                documents_.at(document_id).rating
-            });
-        }
-        return matched_documents;
+    
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query, DocumentStatus::BANNED).size()), 0, "FindTopDocuments: FAIL"s);
+    ASSERT_EQUAL_HINT(static_cast<int>(server.FindTopDocuments(search_query, DocumentStatus::ACTUAL).size()), 1, "FindTopDocuments: FAIL"s);
+    
     }
-};
-
-
-// ==================== для примера =========================
-
-void PrintDocument(const Document& document) {
-    cout << "{ "s
-         << "document_id = "s << document.id << ", "s
-         << "relevance = "s << document.relevance << ", "s
-         << "rating = "s << document.rating
-         << " }"s << endl;
 }
 
-int main() {
-    SearchServer search_server;
-    search_server.SetStopWords("и в на"s);
 
-    search_server.AddDocument(0, "белый кот и модный ошейник"s,        DocumentStatus::ACTUAL, {8, -3});
-    search_server.AddDocument(1, "пушистый кот пушистый хвост"s,       DocumentStatus::ACTUAL, {7, 2, 7});
-    search_server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, {5, -12, 2, 1});
-    search_server.AddDocument(3, "ухоженный скворец евгений"s,         DocumentStatus::BANNED, {9});
-    
-    cout << "ACTUAL by default:"s << endl;
-    for (const Document& document : search_server.FindTopDocuments("пушистый ухоженный кот"s)) {
-        PrintDocument(document);
-    }
-    
-    cout << "BANNED:"s << endl;
-    for (const Document& document : search_server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::BANNED)) {
-        PrintDocument(document);
-    }
-    
-    cout << "Even ids:"s << endl;
-    for (const Document& document : search_server.FindTopDocuments("пушистый ухоженный кот"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; })) {
-        PrintDocument(document);
-    }
-    
-    return 0;
-} 
+void TestSearchServer() {
+    RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
+    RUN_TEST(TestFind);
+    RUN_TEST(TestMatchDocument);
+    // Не забудьте вызывать остальные тесты здесь
+}
 
-/*
-ответ:
-{ document_id = 1, relevance = 0.866434, rating = 5 }
-{ document_id = 0, relevance = 0.173287, rating = 2 }
-{ document_id = 2, relevance = 0.173287, rating = -1 }
-BANNED:
-{ document_id = 3, relevance = 0.231049, rating = 9 }
-Even ids:
-{ document_id = 0, relevance = 0.173287, rating = 2 }
-{ document_id = 2, relevance = 0.173287, rating = -1 }
-*/
+
+// --------- Окончание модульных тестов поисковой системы -----------
