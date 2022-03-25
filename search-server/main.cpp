@@ -79,11 +79,9 @@ enum class DocumentStatus {
 
 class SearchServer {
  public:
-    inline static constexpr int INVALID_DOCUMENT_ID = -1;
-
     int GetDocumentId(int index) const {
         int counter = 0;
-        for (auto& [id, doc] : documents_) {
+        for (int id : id_documents_in_order_) {
             if (counter == index) {
                 return id;
             }
@@ -91,28 +89,28 @@ class SearchServer {
         }
         throw out_of_range("Out of range"s);
     }
+
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
-        : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-            for (string word : (MakeUniqueNonEmptyStrings(stop_words))) {
-                if (CheckForMoreMines(word) == false) {
+        : stop_words_(MakeUniqueNonEmptyStrings(stop_words))  {
+                bool result = all_of(stop_words_.begin(), stop_words_.end(), 
+                [&] (const string& word) {return CheckForMoreMines(word);});
+                    if (result == false) {
                     throw invalid_argument("The document was not added because it contains special characters"s);
-                }
+                    }
             }
-    }
+
     explicit SearchServer(const string& stop_words_text)
         : SearchServer(SplitIntoWords(stop_words_text)) {
-        if (CheckForMoreMines(stop_words_text) == false) {
-            throw invalid_argument("The document was not added because it contains special characters"s);
-        }
     }
+
     void AddDocument(int document_id, const string& document, DocumentStatus status,
                                    const vector<int>& ratings) {
-        if (document_id < 0 || documents_.count(document_id) != 0) {
+        if (document_id < 0) {
             throw invalid_argument("Invalid ID"s);
         }
-        if (CheckForMoreMines(document) == false) {
-            throw invalid_argument("The document was not added because it contains special characters"s);
+        if (documents_.count(document_id) != 0) {
+            throw invalid_argument("The document with this ID has already been added"s);
         }
         const vector<string> words = SplitIntoWordsNoStop(document);
         const double inv_word_count = 1.0 / words.size();
@@ -120,12 +118,11 @@ class SearchServer {
             word_to_document_freqs_[word][document_id] += inv_word_count;
             }
         documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
+        id_documents_in_order_.push_back(document_id);
     }
+
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-        if (CheckForMoreMines(raw_query) == false) {
-            throw invalid_argument("The document was not added because it contains special characters"s);
-        }
         vector<Document> result;
             const Query query = ParseQuery(raw_query);
             result = FindAllDocuments(query, document_predicate);
@@ -143,18 +140,12 @@ class SearchServer {
     }
 
     vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const {
-        if (CheckForMoreMines(raw_query) == false) {
-            throw invalid_argument("The document was not added because it contains special characters"s);
-        }
         return FindTopDocuments(raw_query, [status](int, DocumentStatus document_status, int) {
             return document_status == status;
         });
     }
 
     vector<Document> FindTopDocuments(const string& raw_query) const {
-        if (CheckForMoreMines(raw_query) == false) {
-            throw invalid_argument("The document was not added because it contains special characters"s);
-        }
         return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
     }
     int GetDocumentCount() const {
@@ -162,9 +153,6 @@ class SearchServer {
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
-        if (CheckForMoreMines(raw_query) == false) {
-            throw invalid_argument("The document was not added because it contains special characters"s);
-        }
         tuple<vector<string>, DocumentStatus> result;
             if (document_id >= 0) {
                 const Query query = ParseQuery(raw_query);
@@ -199,7 +187,7 @@ class SearchServer {
     const set<string> stop_words_;
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
-
+    vector<int> id_documents_in_order_;
     bool IsStopWord(const string& word) const {
         return stop_words_.count(word) > 0;
     }
@@ -209,6 +197,9 @@ class SearchServer {
         for (const string& word : SplitIntoWords(text)) {
             if (!IsStopWord(word)) {
                 words.push_back(word);
+            }
+            if (CheckForMoreMines(word) == false) {
+                throw invalid_argument("The document was not added because it contains special characters"s);
             }
         }
         return words;
@@ -233,11 +224,27 @@ class SearchServer {
 
     QueryWord ParseQueryWord(string text) const {
         bool is_minus = false;
-        // Word shouldn't be empty
-        if (text[0] == '-') {
-            is_minus = true;
-            text = text.substr(1);
+        if (text.empty()) {
+            throw invalid_argument("Empty request"s);
         }
+            for (const char s : text) {
+                if (s == '-' && text.size() == 1) {
+                    throw invalid_argument("The document was not added because it contains special characters"s);
+                }
+                if (s >= '\0' && s < ' ') {
+                    throw invalid_argument("The document was not added because it contains special characters"s);
+                }
+            }
+            if (text[0] == '-' && text[1] == '-') {
+                throw invalid_argument("The document was not added because it contains special characters"s);
+            }
+
+            if (text[0] == '-') {
+                is_minus = true;
+                text = text.substr(1);
+            }
+        
+
         return {text, is_minus, IsStopWord(text)};
     }
 
@@ -297,7 +304,7 @@ class SearchServer {
         }
         return matched_documents;
     }
-
+    
     bool CheckForMoreMines(const string& words) const {
         vector<string> text = SplitIntoWords(words);
         for (string word : text) {
@@ -315,6 +322,7 @@ class SearchServer {
         }
         return true;
     }
+    
 };
 
 
@@ -379,7 +387,7 @@ int main() {
     AddDocument(search_server, 1, "fluffy cat fluffy tail"s, DocumentStatus::ACTUAL, {7, 2, 7});
     AddDocument(search_server, 1, "a fluffy dog and a fashionable collar"s, DocumentStatus::ACTUAL, {1, 2});
     AddDocument(search_server, -1, "a fluffy dog and a fashionable collar"s, DocumentStatus::ACTUAL, {1, 2});
-    AddDocument(search_server, 3, "big dog star\0ling eugene"s, DocumentStatus::ACTUAL, {1, 3, 2});
+    AddDocument(search_server, 3, "big dog star\x12ling eugene"s, DocumentStatus::ACTUAL, {1, 3, 2});
     AddDocument(search_server, 4, "big dog starling eugene"s, DocumentStatus::ACTUAL, {1, 1, 1});
 
     FindTopDocuments(search_server, "fluffy -dog"s);
