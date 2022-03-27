@@ -11,6 +11,7 @@
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
+const double ALLOWED_ERROR = 1e-6;
 
 string ReadLine() {
     string s;
@@ -80,12 +81,9 @@ enum class DocumentStatus {
 class SearchServer {
  public:
     int GetDocumentId(int index) const {
-        int counter = 0;
-        for (int id : id_documents_in_order_) {
-            if (counter == index) {
-                return id;
-            }
-            counter++;
+        if (id_documents_in_order_.at(index) != 0) {
+        const auto id = id_documents_in_order_.at(index);
+        return id;
         }
         throw out_of_range("Out of range"s);
     }
@@ -93,12 +91,8 @@ class SearchServer {
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words))  {
-                bool result = all_of(stop_words_.begin(), stop_words_.end(), 
-                [&] (const string& word) {return CheckForMoreMines(word);});
-                    if (result == false) {
-                    throw invalid_argument("The document was not added because it contains special characters"s);
-                    }
-            }
+            all_of(stop_words_.begin(), stop_words_.end(), CheckForMoreMines);
+        }
 
     explicit SearchServer(const string& stop_words_text)
         : SearchServer(SplitIntoWords(stop_words_text)) {
@@ -127,7 +121,7 @@ class SearchServer {
             const Query query = ParseQuery(raw_query);
             result = FindAllDocuments(query, document_predicate);
             sort(result.begin(), result.end(), [](const Document& lhs, const Document& rhs) {
-            if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+            if (abs(lhs.relevance - rhs.relevance) < ALLOWED_ERROR) {
                 return lhs.rating > rhs.rating;
             } else {
                 return lhs.relevance > rhs.relevance;
@@ -148,6 +142,7 @@ class SearchServer {
     vector<Document> FindTopDocuments(const string& raw_query) const {
         return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
     }
+
     int GetDocumentCount() const {
         return documents_.size();
     }
@@ -198,9 +193,7 @@ class SearchServer {
             if (!IsStopWord(word)) {
                 words.push_back(word);
             }
-            if (CheckForMoreMines(word) == false) {
-                throw invalid_argument("The document was not added because it contains special characters"s);
-            }
+            CheckForMoreMines(word);
         }
         return words;
     }
@@ -227,24 +220,10 @@ class SearchServer {
         if (text.empty()) {
             throw invalid_argument("Empty request"s);
         }
-            for (const char s : text) {
-                if (s == '-' && text.size() == 1) {
-                    throw invalid_argument("The document was not added because it contains special characters"s);
-                }
-                if (s >= '\0' && s < ' ') {
-                    throw invalid_argument("The document was not added because it contains special characters"s);
-                }
-            }
-            if (text[0] == '-' && text[1] == '-') {
-                throw invalid_argument("The document was not added because it contains special characters"s);
-            }
-
-            if (text[0] == '-') {
-                is_minus = true;
-                text = text.substr(1);
-            }
-        
-
+        if (text[0] == '-') {
+            is_minus = true;
+            text = text.substr(1);
+        }
         return {text, is_minus, IsStopWord(text)};
     }
 
@@ -256,6 +235,7 @@ class SearchServer {
     Query ParseQuery(const string& text) const {
         Query query;
         for (const string& word : SplitIntoWords(text)) {
+            CheckForMoreMines(word);
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop) {
                 if (query_word.is_minus) {
@@ -304,25 +284,22 @@ class SearchServer {
         }
         return matched_documents;
     }
-    
-    bool CheckForMoreMines(const string& words) const {
+
+    static bool CheckForMoreMines(const string& words) {
         vector<string> text = SplitIntoWords(words);
         for (string word : text) {
             for (const char s : word) {
-                if (s == '-' && word.size() == 1) {
-                    return false;
+                if ((s == '-' && word.size() == 1) || (word[0] == '-' && word[1] == '-')) {
+                    throw invalid_argument("Added extra: -"s);
                 }
                 if (s >= '\0' && s < ' ') {
-                    return false;
+                    string text = "The document was not added because it contains special characters: "s + s;
+                    throw invalid_argument(text);
                 }
-            }
-            if (word[0] == '-' && word[1] == '-') {
-                return false;
             }
         }
         return true;
     }
-    
 };
 
 
@@ -398,4 +375,6 @@ int main() {
     MatchDocuments(search_server, "fashionable -cat"s);
     MatchDocuments(search_server, "fashionable --dog"s);
     MatchDocuments(search_server, "fluffy - tail"s);
+
+    cout << "num_1: "s << search_server.GetDocumentId(1) << endl;
 }
