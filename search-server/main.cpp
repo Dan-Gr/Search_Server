@@ -1,3 +1,4 @@
+// готов правиить до победного конца, мне - это только в удовольствие)
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -7,6 +8,7 @@
 #include <utility>
 #include <vector>
 #include <optional>
+#include <numeric>
 
 using namespace std;
 
@@ -29,7 +31,7 @@ int ReadLineWithNumber() {
 vector<string> SplitIntoWords(const string& text) {
     vector<string> words;
     string word;
-    for (const char c : text) {
+    for (const char& c : text) {
         if (c == ' ') {
             if (!word.empty()) {
                 words.push_back(word);
@@ -81,17 +83,17 @@ enum class DocumentStatus {
 class SearchServer {
  public:
     int GetDocumentId(int index) const {
-        if (id_documents_in_order_.at(index) != 0) {
-        const auto id = id_documents_in_order_.at(index);
-        return id;
+        if (!id_documents_in_order_.at(index)) {
+            throw out_of_range("Out of range"s);
+            } else {
+                return id_documents_in_order_.at(index);
+                }
         }
-        throw out_of_range("Out of range"s);
-    }
 
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words))  {
-            all_of(stop_words_.begin(), stop_words_.end(), CheckForMoreMines);
+            for_each(stop_words_.begin(), stop_words_.end(), CheckForMoreMines);
         }
 
     explicit SearchServer(const string& stop_words_text)
@@ -123,8 +125,8 @@ class SearchServer {
             sort(result.begin(), result.end(), [](const Document& lhs, const Document& rhs) {
             if (abs(lhs.relevance - rhs.relevance) < ALLOWED_ERROR) {
                 return lhs.rating > rhs.rating;
-            } else {
-                return lhs.relevance > rhs.relevance;
+                } else {
+                    return lhs.relevance > rhs.relevance;
             }
         });
             if (result.size() > MAX_RESULT_DOCUMENT_COUNT) {
@@ -183,6 +185,7 @@ class SearchServer {
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
     vector<int> id_documents_in_order_;
+
     bool IsStopWord(const string& word) const {
         return stop_words_.count(word) > 0;
     }
@@ -199,14 +202,11 @@ class SearchServer {
     }
 
     static int ComputeAverageRating(const vector<int>& ratings) {
-        if (ratings.empty()) {
-            return 0;
-        }
         int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
+        if (!ratings.empty()) {
+            rating_sum = accumulate(ratings.begin(), ratings.end(), 0) / static_cast<int>(ratings.size());
         }
-        return rating_sum / static_cast<int>(ratings.size());
+        return rating_sum;
     }
 
     struct QueryWord {
@@ -240,15 +240,14 @@ class SearchServer {
             if (!query_word.is_stop) {
                 if (query_word.is_minus) {
                     query.minus_words.insert(query_word.data);
-                } else {
-                    query.plus_words.insert(query_word.data);
-                }
+                    } else {
+                        query.plus_words.insert(query_word.data);
+                        }
             }
         }
         return query;
     }
 
-    // Existence required
     double ComputeWordInverseDocumentFreq(const string& word) const {
         return log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
     }
@@ -285,11 +284,9 @@ class SearchServer {
         return matched_documents;
     }
 
-    static bool CheckForMoreMines(const string& words) {
-        vector<string> text = SplitIntoWords(words);
-        for (string word : text) {
-            for (const char s : word) {
-                if ((s == '-' && word.size() == 1) || (word[0] == '-' && word[1] == '-')) {
+    static void CheckForMoreMines(const string& words) {
+            for (const char s : words) {
+                if ((s == '-' && words.size() == 1) || (words[0] == '-' && words[1] == '-')) {
                     throw invalid_argument("Added extra: -"s);
                 }
                 if (s >= '\0' && s < ' ') {
@@ -297,8 +294,6 @@ class SearchServer {
                     throw invalid_argument(text);
                 }
             }
-        }
-        return true;
     }
 };
 
