@@ -1,4 +1,3 @@
-// готов править до победного конца, мне - это только в удовольствие)
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -50,13 +49,11 @@ vector<string> SplitIntoWords(const string& text) {
 
 struct Document {
     Document() = default;
-
     Document(int id, double relevance, int rating)
         : id(id)
         , relevance(relevance)
         , rating(rating) {
     }
-
     int id = 0;
     double relevance = 0.0;
     int rating = 0;
@@ -83,18 +80,14 @@ enum class DocumentStatus {
 class SearchServer {
  public:
     int GetDocumentId(int index) const {
-        if (!id_documents_in_order_.at(index)) {
-            throw out_of_range("Out of range"s);
-            } else {
-                return id_documents_in_order_.at(index);
-                }
-        }
+        return id_documents_in_order_.at(index);;
+    }
 
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words))  {
             for_each(stop_words_.begin(), stop_words_.end(), CheckForMoreMines);
-        }
+    }
 
     explicit SearchServer(const string& stop_words_text)
         : SearchServer(SplitIntoWords(stop_words_text)) {
@@ -112,7 +105,7 @@ class SearchServer {
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
             word_to_document_freqs_[word][document_id] += inv_word_count;
-            }
+        }
         documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
         id_documents_in_order_.push_back(document_id);
     }
@@ -127,8 +120,8 @@ class SearchServer {
                 return lhs.rating > rhs.rating;
                 } else {
                     return lhs.relevance > rhs.relevance;
-            }
-        });
+                }
+            });
             if (result.size() > MAX_RESULT_DOCUMENT_COUNT) {
                 result.resize(MAX_RESULT_DOCUMENT_COUNT);
             }
@@ -172,7 +165,7 @@ class SearchServer {
                     }
                 }
                 result = {matched_words, documents_.at(document_id).status};
-                        }
+            }
     return result;
     }
 
@@ -202,10 +195,7 @@ class SearchServer {
     }
 
     static int ComputeAverageRating(const vector<int>& ratings) {
-        int rating_sum = 0;
-        if (!ratings.empty()) {
-            rating_sum = accumulate(ratings.begin(), ratings.end(), 0) / static_cast<int>(ratings.size());
-        }
+        int rating_sum = accumulate(ratings.begin(), ratings.end(), 0) / static_cast<int>(ratings.size());
         return rating_sum;
     }
 
@@ -242,7 +232,7 @@ class SearchServer {
                     query.minus_words.insert(query_word.data);
                     } else {
                         query.plus_words.insert(query_word.data);
-                        }
+                    }
             }
         }
         return query;
@@ -284,16 +274,15 @@ class SearchServer {
         return matched_documents;
     }
 
-    static void CheckForMoreMines(const string& words) {
-            for (const char s : words) {
-                if ((s == '-' && words.size() == 1) || (words[0] == '-' && words[1] == '-')) {
-                    throw invalid_argument("Added extra: -"s);
-                }
-                if (s >= '\0' && s < ' ') {
-                    string text = "The document was not added because it contains special characters: "s + s;
-                    throw invalid_argument(text);
-                }
+    static void CheckForMoreMines(const string& word) {
+        for (const char s : word) {
+            if ((s == '-' && word.size() == 1) || (word[0] == '-' && word[1] == '-')) {
+                throw invalid_argument("Added extra: -"s);
             }
+            if (s >= '\0' && s < ' ') {
+                throw invalid_argument("The document was not added because it contains special characters: "s + s);
+            }
+        }
     }
 };
 
@@ -371,5 +360,5 @@ int main() {
     MatchDocuments(search_server, "fashionable --dog"s);
     MatchDocuments(search_server, "fluffy - tail"s);
 
-    cout << "num_1: "s << search_server.GetDocumentId(1) << endl;
+    cout << "num_1: "s << search_server.GetDocumentId(5) << endl;
 }
