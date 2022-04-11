@@ -1,9 +1,10 @@
 // Copyright 2022
-// 01:41 11/04/2022
+// 23:06 11/04/2022
 
 #pragma once
 
 #include <vector>
+#include <cassert>
 
 template <typename Iterator>
 class IteratorRange {
@@ -14,18 +15,18 @@ class IteratorRange {
         end_ = conteiner_end;
     }
 
-void FormPage(Iterator conteiner_begin, Iterator conteiner_end) {
+    void FormPage(Iterator conteiner_begin, Iterator conteiner_end) {
         begin_ = conteiner_begin;
         end_ = conteiner_end;
     }
 
-auto begin()  {
-    return begin_;
-}
+    auto begin()  {
+        return begin_;
+    }
 
-auto end() {
-    return end_;
-}
+    auto end() {
+        return end_;
+    }
 
  private:
     Iterator begin_;
@@ -35,10 +36,11 @@ auto end() {
 template <typename Iterator>
 class Paginator {
  public:
-    Paginator(Iterator container_begin, Iterator conteiner_end, size_t page_size) {
-        int interval = distance(container_begin, conteiner_end);
+    Paginator(Iterator container_begin, Iterator container_end, size_t page_size) {
+        int interval = distance(container_begin, container_end);
         int size = static_cast<int>(page_size);
         auto vsp = container_begin;
+        assert(container_end >= container_end && page_size > 0);
         advance(vsp, size);
         for (int i = 0; i != interval / size; i++) {
             IteratorRange<Iterator> buffer(container_begin, vsp);
@@ -47,7 +49,7 @@ class Paginator {
             advance(vsp, size);
         }
         if (interval % size != 0) {
-            IteratorRange<Iterator> buffer(container_begin, conteiner_end);
+            IteratorRange<Iterator> buffer(container_begin, container_end);
             search_page_.push_back(buffer);
         }
 }

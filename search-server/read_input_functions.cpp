@@ -1,7 +1,5 @@
 // Copyright 2022
-// 01:41 11/04/2022
-
-#pragma once
+// 23:06 11/04/2022
 
 #include "read_input_functions.h"
 
