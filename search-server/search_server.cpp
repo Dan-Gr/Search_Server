@@ -1,11 +1,44 @@
 // Copyright 2022
-// 23:06 11/04/2022
+// 00:57 15/05/2022
 
 #include "search_server.h"
 
+void SearchServer::RemoveDocument(int document_id) {
+    for (auto it = word_to_document_freqs_.begin(); it != word_to_document_freqs_.end(); it++) {
+        if (it->second.count(document_id)) {
+            it->second.erase(document_id);
+        }
+    }
+    if (documents_.count(document_id)) {
+        documents_.erase(document_id);
+    }
+    for (auto it = id_documents_in_order_.begin(); it != id_documents_in_order_.end(); it++) {
+        if (*it == document_id) {
+            id_documents_in_order_.erase(it);
+            break;
+        }
+    }
+}
 
-int SearchServer::GetDocumentId(int index) const {
-    return id_documents_in_order_.at(index);;
+std::vector<int>::iterator SearchServer::begin() {
+        return id_documents_in_order_.begin();
+    }
+
+std::vector<int>::iterator SearchServer::end() {
+        return id_documents_in_order_.end();
+    }
+
+const map<string, double>& SearchServer::GetWordFrequencies(int document_id) const {
+    static map<string, double> word_frequencies_;
+    if (!word_frequencies_.empty()) {
+        word_frequencies_.clear();
+    }
+    for (auto [word, k_map] : word_to_document_freqs_) {
+        if (k_map.count(document_id)) {
+            word_frequencies_[word] = k_map[document_id];
+        }
+    }
+    return word_frequencies_;
 }
 
 SearchServer::SearchServer(const string& stop_words_text)
@@ -21,6 +54,7 @@ void SearchServer::AddDocument(int document_id, const string& document, Document
         throw invalid_argument("The document with this ID has already been added"s);
     }
     const vector<string> words = SplitIntoWordsNoStop(document);
+    word_in_documents_[document_id] = {words.begin(), words.end()};
     const double inv_word_count = 1.0 / words.size();
     for (const string& word : words) {
         word_to_document_freqs_[word][document_id] += inv_word_count;
@@ -30,6 +64,7 @@ void SearchServer::AddDocument(int document_id, const string& document, Document
 }
 
 vector<Document> SearchServer::FindTopDocuments(const string& raw_query, DocumentStatus status) const {
+    // LOG_DURATION_STREAM("Operation time");
     return FindTopDocuments(raw_query, [status](int, DocumentStatus document_status, int) {
         return document_status == status;
     });
@@ -44,6 +79,7 @@ int SearchServer::GetDocumentCount() const {
 }
 
 tuple<vector<string>, DocumentStatus> SearchServer::MatchDocument(const string& raw_query, int document_id) const {
+    // LOG_DURATION_STREAM("Operation time");
     tuple<vector<string>, DocumentStatus> result;
     if (document_id >= 0) {
         const Query query = ParseQuery(raw_query);

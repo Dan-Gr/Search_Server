@@ -1,5 +1,5 @@
 // Copyright 2022
-// 23:06 11/04/2022
+// 00:57 15/05/2022
 
 #pragma once
 
@@ -42,6 +42,14 @@ class SearchServer {
     int GetDocumentCount() const;
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const;
 
+    const map<string, double>& GetWordFrequencies(int document_id) const;
+    void RemoveDocument(int document_id);
+
+    std::vector<int>::iterator begin(); 
+    std::vector<int>::iterator end();
+
+    map <int, set<string>> word_in_documents_;
+
  private:
     struct DocumentData {
         int rating;
@@ -52,6 +60,7 @@ class SearchServer {
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
     vector<int> id_documents_in_order_;
+    // map<string, double> word_frequencies_;
 
     bool IsStopWord(const string& word) const;
     vector<string> SplitIntoWordsNoStop(const string& text) const;

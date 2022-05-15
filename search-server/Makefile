@@ -1,9 +1,10 @@
-FLAG = -Wall -g -Wextra -Wmaybe-uninitialized -Wfatal-errors
+FLAG = -Wall -Wextra -Warray-bounds -std=c++17
+FLAGS = -Wall -Wextra -Warray-bounds -std=c++17
 
 all:    search_server
 
-search_server:  main.o document.o read_input_functions.o request_queue.o search_server.o string_processing.o
-	g++ main.o document.o read_input_functions.o request_queue.o search_server.o string_processing.o -o search_server
+search_server:  document.o read_input_functions.o remove_duplicates.o search_server.o string_processing.o request_queue.o main.o
+	g++ document.o read_input_functions.o remove_duplicates.o search_server.o string_processing.o request_queue.o main.o -o search_server
 	del *.o *.gch
 
 main.o: main.cpp 
@@ -19,11 +20,17 @@ request_queue.o:    request_queue.cpp
 	g++ -c $(FLAG) request_queue.cpp request_queue.h
 
 search_server.o:    search_server.cpp
-	g++ -c $(FLAG) search_server.cpp search_server.h
+	g++ -c $(FLAG) search_server.cpp search_server.h log_duration.h remove_duplicates.h
 
 string_processing.o:    string_processing.cpp
 	g++ -c $(FLAG) string_processing.cpp string_processing.h
 
+remove_duplicates.o:	remove_duplicates.cpp
+	g++ -c $(FLAG) remove_duplicates.cpp remove_duplicates.h
+
 clean: 
 	del *.o *.gch
-	del search_server.exe
+	del main
+	del *.exe
+
+rebield: clean search_server
