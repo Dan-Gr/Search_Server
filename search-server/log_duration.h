@@ -1,5 +1,5 @@
 // Copyright 2022
-// 00:54 15/05/2022
+// 16:50 18/05/2022
 
 #pragma once
 
@@ -9,16 +9,19 @@
 #define PROFILE_CONCAT_INTERNAL(X, Y) X##Y
 #define PROFILE_CONCAT(X, Y) PROFILE_CONCAT_INTERNAL(X, Y)
 #define UNIQUE_VAR_NAME_PROFILE PROFILE_CONCAT(profileGuard, __LINE__)
-#define LOG_DURATION_STREAM(x, y) LogDuration UNIQUE_VAR_NAME_PROFILE(x, y)
+#define LOG_DURATION(x) LogDuration UNIQUE_VAR_NAME_PROFILE(x)
+
+#define OUTPUT std::cerr
 
 class LogDuration {
 public:
+    // заменим имя типа std::chrono::steady_clock
+    // с помощью using для удобства
     using Clock = std::chrono::steady_clock;
 
-    LogDuration(const std::string& id, std::ostream& out)
-        :id_(id), out_(out){
+    LogDuration(const std::string& id)
+        : id_(id) {
     }
-
 
     ~LogDuration() {
         using namespace std::chrono;
@@ -26,11 +29,10 @@ public:
 
         const auto end_time = Clock::now();
         const auto dur = end_time - start_time_;
-        out_ << id_ << ": "s << duration_cast<milliseconds>(dur).count() << " ms"s << std::endl;
+        OUTPUT << id_ << ": "s << duration_cast<milliseconds>(dur).count() << " ms"s << std::endl;
     }
 
 private:
     const std::string id_;
     const Clock::time_point start_time_ = Clock::now();
-    std::ostream& out_;
 };

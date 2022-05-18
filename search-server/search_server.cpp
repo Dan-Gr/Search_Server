@@ -1,30 +1,31 @@
 // Copyright 2022
-// 00:57 15/05/2022
+// 16:50 18/05/2022
 
 #include "search_server.h"
 
 void SearchServer::RemoveDocument(int document_id) {
-    for (auto it = word_to_document_freqs_.begin(); it != word_to_document_freqs_.end(); it++) {
-        if (it->second.count(document_id)) {
-            it->second.erase(document_id);
+    for (string word : word_in_documents_[document_id]) {
+        if (word_to_document_freqs_.count(word)) {
+            word_to_document_freqs_[word].erase(document_id);
         }
     }
     if (documents_.count(document_id)) {
         documents_.erase(document_id);
     }
-    for (auto it = id_documents_in_order_.begin(); it != id_documents_in_order_.end(); it++) {
-        if (*it == document_id) {
-            id_documents_in_order_.erase(it);
-            break;
-        }
+
+    if (id_documents_in_order_.count(document_id)) {
+        id_documents_in_order_.erase(document_id);
+    }
+    if (word_to_document_freqs_two_.count(document_id)) {
+        word_to_document_freqs_two_.erase(document_id);
     }
 }
 
-std::vector<int>::iterator SearchServer::begin() {
+std::set<int>::iterator SearchServer::begin() {
         return id_documents_in_order_.begin();
     }
 
-std::vector<int>::iterator SearchServer::end() {
+std::set<int>::iterator SearchServer::end() {
         return id_documents_in_order_.end();
     }
 
@@ -33,11 +34,7 @@ const map<string, double>& SearchServer::GetWordFrequencies(int document_id) con
     if (!word_frequencies_.empty()) {
         word_frequencies_.clear();
     }
-    for (auto [word, k_map] : word_to_document_freqs_) {
-        if (k_map.count(document_id)) {
-            word_frequencies_[word] = k_map[document_id];
-        }
-    }
+    word_frequencies_ = word_to_document_freqs_two_.at(document_id);
     return word_frequencies_;
 }
 
@@ -47,6 +44,7 @@ SearchServer::SearchServer(const string& stop_words_text)
 
 void SearchServer::AddDocument(int document_id, const string& document, DocumentStatus status,
                                    const vector<int>& ratings) {
+    // LOG_DURATION("Operation time");                              
     if (document_id < 0) {
         throw invalid_argument("Invalid ID"s);
     }
@@ -58,13 +56,13 @@ void SearchServer::AddDocument(int document_id, const string& document, Document
     const double inv_word_count = 1.0 / words.size();
     for (const string& word : words) {
         word_to_document_freqs_[word][document_id] += inv_word_count;
+        word_to_document_freqs_two_[document_id][word] += inv_word_count;
     }
     documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
-    id_documents_in_order_.push_back(document_id);
+    id_documents_in_order_.insert(document_id);
 }
 
 vector<Document> SearchServer::FindTopDocuments(const string& raw_query, DocumentStatus status) const {
-    // LOG_DURATION_STREAM("Operation time");
     return FindTopDocuments(raw_query, [status](int, DocumentStatus document_status, int) {
         return document_status == status;
     });
@@ -79,7 +77,6 @@ int SearchServer::GetDocumentCount() const {
 }
 
 tuple<vector<string>, DocumentStatus> SearchServer::MatchDocument(const string& raw_query, int document_id) const {
-    // LOG_DURATION_STREAM("Operation time");
     tuple<vector<string>, DocumentStatus> result;
     if (document_id >= 0) {
         const Query query = ParseQuery(raw_query);

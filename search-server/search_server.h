@@ -1,5 +1,5 @@
 // Copyright 2022
-// 00:57 15/05/2022
+// 16:50 18/05/2022
 
 #pragma once
 
@@ -18,6 +18,7 @@ using namespace std;
 
 #include "string_processing.h"
 #include "document.h"
+#include "log_duration.h"
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 const double ALLOWED_ERROR = 1e-6;
@@ -45,10 +46,11 @@ class SearchServer {
     const map<string, double>& GetWordFrequencies(int document_id) const;
     void RemoveDocument(int document_id);
 
-    std::vector<int>::iterator begin(); 
-    std::vector<int>::iterator end();
+    std::set<int>::iterator begin(); 
+    std::set<int>::iterator end();
 
     map <int, set<string>> word_in_documents_;
+    map<int, map<string, double>> word_to_document_freqs_two_;
 
  private:
     struct DocumentData {
@@ -59,8 +61,7 @@ class SearchServer {
     const set<string> stop_words_;
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
-    vector<int> id_documents_in_order_;
-    // map<string, double> word_frequencies_;
+    set<int> id_documents_in_order_;
 
     bool IsStopWord(const string& word) const;
     vector<string> SplitIntoWordsNoStop(const string& text) const;
