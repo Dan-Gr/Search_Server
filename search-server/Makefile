@@ -1,5 +1,5 @@
 FLAG = -Wall -Wextra -Warray-bounds -std=c++17
-FLAGS = -Wall -Wextra -Warray-bounds -std=c++17
+FLAGS = -Wall -Wextra -Warray-bounds -g -fsanitize=address -std=c++17
 
 all:    search_server
 
@@ -33,4 +33,4 @@ clean:
 	del main
 	del *.exe
 
-rebield: clean search_server
+reb: clean search_server

@@ -1,10 +1,10 @@
 // Copyright 2022
-// 16:50 18/05/2022
+// 13:36 20/05/2022
 
 #include "search_server.h"
 
 void SearchServer::RemoveDocument(int document_id) {
-    for (string word : word_in_documents_[document_id]) {
+    for (const auto [word, freqs] : id_document_and_word_freqs_[document_id]) {
         if (word_to_document_freqs_.count(word)) {
             word_to_document_freqs_[word].erase(document_id);
         }
@@ -16,9 +16,17 @@ void SearchServer::RemoveDocument(int document_id) {
     if (id_documents_in_order_.count(document_id)) {
         id_documents_in_order_.erase(document_id);
     }
-    if (word_to_document_freqs_two_.count(document_id)) {
-        word_to_document_freqs_two_.erase(document_id);
+    if (id_document_and_word_freqs_.count(document_id)) {
+        id_document_and_word_freqs_.erase(document_id);
     }
+}
+
+set<string> SearchServer::ReturWord(const int id) {
+    set <string> check;
+    for (auto [word, freqs] : id_document_and_word_freqs_[id]) {
+        check.insert(word);
+    }
+    return check;
 }
 
 std::set<int>::iterator SearchServer::begin() {
@@ -34,7 +42,7 @@ const map<string, double>& SearchServer::GetWordFrequencies(int document_id) con
     if (!word_frequencies_.empty()) {
         word_frequencies_.clear();
     }
-    word_frequencies_ = word_to_document_freqs_two_.at(document_id);
+    word_frequencies_ = id_document_and_word_freqs_.at(document_id);
     return word_frequencies_;
 }
 
@@ -52,11 +60,10 @@ void SearchServer::AddDocument(int document_id, const string& document, Document
         throw invalid_argument("The document with this ID has already been added"s);
     }
     const vector<string> words = SplitIntoWordsNoStop(document);
-    word_in_documents_[document_id] = {words.begin(), words.end()};
     const double inv_word_count = 1.0 / words.size();
     for (const string& word : words) {
         word_to_document_freqs_[word][document_id] += inv_word_count;
-        word_to_document_freqs_two_[document_id][word] += inv_word_count;
+        id_document_and_word_freqs_[document_id][word] += inv_word_count;
     }
     documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
     id_documents_in_order_.insert(document_id);

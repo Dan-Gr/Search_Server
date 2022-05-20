@@ -1,5 +1,5 @@
 // Copyright 2022
-// 16:50 18/05/2022
+// 13:36 20/05/2022
 
 #pragma once
 
@@ -45,12 +45,10 @@ class SearchServer {
 
     const map<string, double>& GetWordFrequencies(int document_id) const;
     void RemoveDocument(int document_id);
+    set<string> ReturWord(const int id);
 
     std::set<int>::iterator begin(); 
     std::set<int>::iterator end();
-
-    map <int, set<string>> word_in_documents_;
-    map<int, map<string, double>> word_to_document_freqs_two_;
 
  private:
     struct DocumentData {
@@ -60,6 +58,7 @@ class SearchServer {
 
     const set<string> stop_words_;
     map<string, map<int, double>> word_to_document_freqs_;
+    map<int, map<string, double>> id_document_and_word_freqs_;
     map<int, DocumentData> documents_;
     set<int> id_documents_in_order_;
 
