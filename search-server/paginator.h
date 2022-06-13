@@ -1,5 +1,5 @@
 // Copyright 2022
-// 16:50 18/05/2022
+// 16:28 11/06/2022
 
 #pragma once
 
@@ -10,9 +10,8 @@ template <typename Iterator>
 class IteratorRange {
  public:
     IteratorRange() = default;
-    IteratorRange(Iterator conteiner_begin, Iterator conteiner_end) {
-        begin_ = conteiner_begin;
-        end_ = conteiner_end;
+    IteratorRange(Iterator conteiner_begin, Iterator conteiner_end)
+    : begin_(conteiner_begin), end_(conteiner_end)  {
     }
 
     void FormPage(Iterator conteiner_begin, Iterator conteiner_end) {

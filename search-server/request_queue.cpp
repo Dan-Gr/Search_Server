@@ -1,8 +1,7 @@
 // Copyright 2022
-// 12:27 20/05/2022
+// 16:36 11/06/2022
 
 #include "request_queue.h"
-
 
 RequestQueue::RequestQueue(const SearchServer& search_server)
     : search_server_in_class_(search_server) {
