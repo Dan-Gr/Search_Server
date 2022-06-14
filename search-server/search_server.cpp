@@ -1,5 +1,5 @@
 // Copyright 2022
-// 13:36 20/05/2022
+// 22:26 14/06/2022
 
 #include "search_server.h"
 using namespace std;
@@ -186,7 +186,7 @@ vector<string_view> SearchServer::SplitIntoWordsNoStop(const string_view& text) 
         if (!IsStopWord(word)) {
             words.push_back(word);
         }
-        CheckForMoreMines(word);
+        CheckForMoreMinuses(word);
     }
     return words;
 }
@@ -259,7 +259,7 @@ double SearchServer::ComputeWordInverseDocumentFreq(const string_view& word) con
     return log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
 }
 
-void SearchServer::CheckForMoreMines(const string_view& word) {
+void SearchServer::CheckForMoreMinuses(const string_view& word) {
     if (word[0] == '-' && word[1] == '-') {
         throw invalid_argument("Added extra '-' or The document was not added because it contains special characters: "s);
     }

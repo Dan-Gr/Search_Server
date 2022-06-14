@@ -1,5 +1,5 @@
 // Copyright 2022
-// 13:36 20/05/2022
+// 22:24 14/06/2022
 
 #pragma once
 
@@ -124,19 +124,19 @@ class SearchServer {
     template <typename DocumentPredicate>
     vector<Document> FindAllDocuments(const std::execution::parallel_policy&, const QueryVector& query, DocumentPredicate document_predicate) const;
 
-    static void CheckForMoreMines(const string_view& word);
+    static void CheckForMoreMinuses(const string_view& word);
 };
 
 template <typename StringContainer>
     SearchServer::SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words))  {
-            for_each(stop_words_.begin(), stop_words_.end(), CheckForMoreMines);
-    }
+            for_each(stop_words_.begin(), stop_words_.end(), CheckForMoreMinuses);
+}
 
 template <typename DocumentPredicate>
 vector<Document> SearchServer::FindTopDocuments(const string_view& raw_query, DocumentPredicate document_predicate) const {
     return FindTopDocuments(std::execution::seq, raw_query, document_predicate);
-    }
+}
 
 template <typename DocumentPredicate>
 vector<Document> SearchServer::FindTopDocuments(const std::execution::sequenced_policy&, const string_view& raw_query, DocumentPredicate document_predicate) const {
@@ -154,7 +154,7 @@ vector<Document> SearchServer::FindTopDocuments(const std::execution::sequenced_
         result.resize(MAX_RESULT_DOCUMENT_COUNT);
     }
     return result;
-    }
+}
 
 template <typename DocumentPredicate>
 vector<Document> SearchServer::FindTopDocuments(const std::execution::parallel_policy&, const string_view& raw_query, DocumentPredicate document_predicate) const {
@@ -178,7 +178,7 @@ vector<Document> SearchServer::FindTopDocuments(const std::execution::parallel_p
         result.resize(MAX_RESULT_DOCUMENT_COUNT);
     }
     return result;
-    }
+}
 
 template <typename DocumentPredicate>
 vector<Document> SearchServer::FindAllDocuments(const std::execution::sequenced_policy&, const QuerySet& query, DocumentPredicate document_predicate) const {
@@ -195,7 +195,7 @@ vector<Document> SearchServer::FindAllDocuments(const std::execution::sequenced_
             }
         }
     }
-    for_each(std::execution::seq, query.minus_words.begin(), query.minus_words.end(), 
+    for_each(std::execution::seq, query.minus_words.begin(), query.minus_words.end(),
         [this, &document_to_relevance](const string_view& word) {
             if (word_to_document_freqs_.count(word)) {
                 for (const auto [document_id, freqs] : word_to_document_freqs_.at(word)) {
@@ -205,8 +205,10 @@ vector<Document> SearchServer::FindAllDocuments(const std::execution::sequenced_
             });
     vector<Document> matched_documents;
     for_each(std::execution::seq, document_to_relevance.begin(), document_to_relevance.end(),
-        [this, &matched_documents](const auto& pair) {
-            matched_documents.insert( matched_documents.end(), { pair.first, pair.second, documents_.at(pair.first).rating });
+        [this, &matched_documents] (const auto& pair) {
+            matched_documents.insert(matched_documents.end(), {
+                pair.first, pair.second, documents_.at(pair.first).rating
+            });
         });
     return matched_documents;
 }
@@ -225,22 +227,24 @@ vector<Document> SearchServer::FindAllDocuments(const std::execution::parallel_p
                     }
                 }
             });
-    
+
         map<int, double> document_to_relevance(document_to_relevance_with_mt.BuildOrdinaryMap());
-        for_each(std::execution::seq, query.minus_words.begin(), query.minus_words.end(), 
-            [this, &document_to_relevance](const string_view& word) {
+        mutex met;
+        for_each(std::execution::seq, query.minus_words.begin(), query.minus_words.end(),
+            [this, &document_to_relevance, &met](const string_view& word) {
                 if (word_to_document_freqs_.count(word)) {
+                    lock_guard<mutex> guard(met);
                     for (const auto [document_id, freqs] : word_to_document_freqs_.at(word)) {
                         document_to_relevance.erase(document_id);
                     }
                 }
             });
-        
+
         vector<Document> matched_documents;
         matched_documents.reserve(document_to_relevance.size());
         for_each(std::execution::par, document_to_relevance.begin(), document_to_relevance.end(),
             [this, &matched_documents](const auto& pair) {
-                matched_documents.insert( matched_documents.end(), { pair.first, pair.second, documents_.at(pair.first).rating });
+                matched_documents.insert(matched_documents.end(), { pair.first, pair.second, documents_.at(pair.first).rating });
             });
         return matched_documents;
-    }
+}
