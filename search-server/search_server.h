@@ -1,5 +1,5 @@
 // Copyright 2022
-// 22:24 14/06/2022
+// 14:45 15/06/2022
 
 #pragma once
 
@@ -229,11 +229,11 @@ vector<Document> SearchServer::FindAllDocuments(const std::execution::parallel_p
             });
 
         map<int, double> document_to_relevance(document_to_relevance_with_mt.BuildOrdinaryMap());
-        mutex met;
+        mutex met_for_erase;
         for_each(std::execution::seq, query.minus_words.begin(), query.minus_words.end(),
-            [this, &document_to_relevance, &met](const string_view& word) {
+            [this, &document_to_relevance, &met_for_erase](const string_view& word) {
                 if (word_to_document_freqs_.count(word)) {
-                    lock_guard<mutex> guard(met);
+                    lock_guard<mutex> guard(met_for_erase);
                     for (const auto [document_id, freqs] : word_to_document_freqs_.at(word)) {
                         document_to_relevance.erase(document_id);
                     }
@@ -241,9 +241,11 @@ vector<Document> SearchServer::FindAllDocuments(const std::execution::parallel_p
             });
 
         vector<Document> matched_documents;
+        mutex met_for_insert;
         matched_documents.reserve(document_to_relevance.size());
         for_each(std::execution::par, document_to_relevance.begin(), document_to_relevance.end(),
-            [this, &matched_documents](const auto& pair) {
+            [this, &matched_documents, &met_for_insert](const auto& pair) {
+                lock_guard<mutex> guard(met_for_insert);
                 matched_documents.insert(matched_documents.end(), { pair.first, pair.second, documents_.at(pair.first).rating });
             });
         return matched_documents;
