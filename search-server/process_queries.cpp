@@ -1,3 +1,6 @@
+// Copyright 2022
+// 16:32 11/06/2022
+
 #include "process_queries.h"
 
 std::vector<std::vector<Document>> ProcessQueries(
