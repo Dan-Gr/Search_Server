@@ -1,3 +1,5 @@
+// Copyright 2022
+// 16:21 11/06/2022
 
 #pragma once
 
